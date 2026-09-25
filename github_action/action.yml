@@ -1,0 +1,81 @@
+name: "PR Explainer Bot"
+description: "AI-powered git diff explanation, security/risk flagging, and test recommendations for Pull Requests"
+author: "Google Antigravity"
+
+inputs:
+  github_token:
+    description: "GitHub token for authenticating API calls and posting PR comments"
+    required: false
+    default: "${{ github.token }}"
+  gemini_api_key:
+    description: "Google Gemini API Key"
+    required: false
+    default: ""
+  groq_api_key:
+    description: "Groq API Key (if using Groq provider)"
+    required: false
+    default: ""
+  provider:
+    description: "LLM provider: 'gemini' (default) or 'groq'"
+    required: false
+    default: "gemini"
+  model:
+    description: "LLM model name (defaults: gemini-3.8-flash / llama-3.3-70b-versatile)"
+    required: false
+    default: ""
+  comment_mode:
+    description: "How to post review: 'sticky' (update existing comment), 'new' (always post new), or 'review' (formal PR review)"
+    required: false
+    default: "sticky"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r "${{ github.action_path }}/../requirements.txt"
+
+    - name: Fetch PR Git Diff
+      id: fetch_diff
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          git fetch origin ${{ github.base_ref }} --depth=1
+          git diff origin/${{ github.base_ref }}...HEAD > pr.diff
+        else
+          git diff HEAD~1 > pr.diff
+        fi
+        echo "Diff generated successfully ($(wc -l < pr.diff) lines)"
+
+    - name: Run PR Explainer Analysis
+      shell: bash
+      env:
+        GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
+        GROQ_API_KEY: ${{ inputs.groq_api_key }}
+        LLM_PROVIDER: ${{ inputs.provider }}
+      run: |
+        MODEL_FLAG=""
+        if [ -n "${{ inputs.model }}" ]; then
+          MODEL_FLAG="--model ${{ inputs.model }}"
+        fi
+        python "${{ github.action_path }}/../cli.py" review pr.diff --format json --output review_result.json $MODEL_FLAG
+
+    - name: Post PR Review Comment
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_EVENT_PATH: ${{ github.event_path }}
+      run: |
+        python "${{ github.action_path }}/post_comment.py" \
+          --result review_result.json \
+          --mode "${{ inputs.comment_mode }}"

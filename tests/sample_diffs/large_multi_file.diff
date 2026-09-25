@@ -1,0 +1,67 @@
+diff --git a/src/db/models/subscription.py b/src/db/models/subscription.py
+new file mode 100644
+index 0000000..8a91bc2
+--- /dev/null
++++ b/src/db/models/subscription.py
+@@ -0,0 +1,19 @@
++from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
++from sqlalchemy.orm import relationship
++from datetime import datetime
++from src.db.base import Base
++
++class Subscription(Base):
++    __tablename__ = "subscriptions"
++
++    id = Column(Integer, primary_key=True, index=True)
++    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
++    tier = Column(String(50), nullable=False, default="free")
++    is_active = Column(Boolean, default=True)
++    created_at = Column(DateTime, default=datetime.utcnow)
++    expires_at = Column(DateTime, nullable=True)
++
++    user = relationship("User", back_populates="subscriptions")
+diff --git a/src/api/routes/subscriptions.py b/src/api/routes/subscriptions.py
+new file mode 100644
+index 0000000..9dfb21a
+--- /dev/null
++++ b/src/api/routes/subscriptions.py
+@@ -0,0 +1,25 @@
++from fastapi import APIRouter, Depends, HTTPException, status
++from sqlalchemy.orm import Session
++from src.db.session import get_db
++from src.db.models.subscription import Subscription
++
++router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
++
++@router.post("/upgrade")
++def upgrade_subscription(user_id: int, new_tier: str, db: Session = Depends(get_db)):
++    sub = db.query(Subscription).filter(Subscription.user_id == user_id, Subscription.is_active == True).first()
++    if not sub:
++        sub = Subscription(user_id=user_id, tier=new_tier)
++        db.add(sub)
++    else:
++        sub.tier = new_tier
++    db.commit()
++    db.refresh(sub)
++    return {"status": "success", "tier": sub.tier}
+diff --git a/src/legacy/billing.py b/src/legacy/billing.py
+deleted file mode 100644
+index 3217bca..0000000
+--- a/src/legacy/billing.py
++++ /dev/null
+@@ -1,15 +0,0 @@
+-# Legacy billing logic deprecated
+-def legacy_bill_user(user_id, amount):
+-    raise DeprecationWarning("Use Subscription system instead")
+diff --git a/poetry.lock b/poetry.lock
+index e1129bc..01923fa 100644
+--- a/poetry.lock
++++ b/poetry.lock
+@@ -1,6 +1,6 @@
+ [[package]]
+ name = "stripe"
+-version = "5.1.0"
++version = "7.2.0"
+ description = "Python bindings for the Stripe API"
+ optional = false
+ python-versions = ">=3.8"

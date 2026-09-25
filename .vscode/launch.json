@@ -1,0 +1,52 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "CLI: Review Risky Auth Diff",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/cli.py",
+      "args": [
+        "review",
+        "tests/sample_diffs/risky_auth_change.diff"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "CLI: Review Small Feature Diff",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/cli.py",
+      "args": [
+        "review",
+        "tests/sample_diffs/small_feature.diff"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "CLI: Review Staged Changes",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/cli.py",
+      "args": [
+        "review",
+        "--staged"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Pytest: Run All Tests",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "-v"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ]
+}
